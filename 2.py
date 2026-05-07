@@ -9,6 +9,26 @@ from openpyxl.styles import Border, Side, Alignment, Font, PatternFill
 from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
 from openpyxl.utils import get_column_letter
 
+WEB_PORT_SCHEMES = {
+    "443": "https",
+    "4430": "https",
+    "4433": "https",
+    "4443": "https",
+    "5443": "https",
+    "8443": "https",
+    "9043": "https",
+    "9443": "https",
+    "10443": "https",
+}
+
+WEB_CANDIDATE_PORTS = {
+    "80", "81", "82", "83", "85", "88", "443", "888",
+    "7001", "8000", "8001", "8002", "8003", "8008", "8009", "8010",
+    "8080", "8081", "8082", "8086", "8088", "8089", "8090", "8443",
+    "8888", "9000", "9043", "9100", "9200", "9443", "9999", "10000",
+    "10443", "4430", "4433", "4443", "5443"
+}
+
 def run_ts_scan():
     """执行ts命令进行扫描，使用原生DOS界面显示输出"""
     print("开始执行端口扫描...")
@@ -28,8 +48,8 @@ def run_ts_scan():
 def parse_url_file():
     """解析url.txt文件，提取详细信息，处理URL末尾的逗号"""
     if not os.path.exists("url.txt"):
-        print("url.txt文件不存在，请先执行扫描")
-        return []
+        print("url.txt文件不存在，尝试从port.txt开放Web端口生成URL")
+        return parse_port_file_for_urls()
     
     with open("url.txt", "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -165,6 +185,61 @@ def parse_url_file():
         # 如果完全无法解析，记录原始行
         print(f"警告：无法解析行 - {line}")
     
+    return parsed_data
+
+def build_url_from_host_port(host, port):
+    scheme = WEB_PORT_SCHEMES.get(port, "http")
+    return f"{scheme}://{host}:{port}"
+
+def parse_port_file_for_urls(file_path="port.txt"):
+    if not os.path.exists(file_path):
+        print(f"{file_path}文件不存在，无法生成URL")
+        return []
+
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        lines = f.readlines()
+
+    parsed_data = []
+    seen_urls = set()
+    current_id = 1
+    host_port_pattern = re.compile(r'(?<![/\w.-])([A-Za-z0-9.-]+):(\d+)\s+open\b')
+
+    for line in lines:
+        line = line.strip().rstrip(',')
+        if not line:
+            continue
+
+        url_match = re.search(r'(http[s]?://\S+)', line)
+        if url_match:
+            url = re.sub(r',$', '', url_match.group(1))
+            ip_port_match = re.search(r'http[s]?://([^:/]+):?(\d+)?', url)
+            host = ip_port_match.group(1) if ip_port_match else ""
+            port = ip_port_match.group(2) if ip_port_match and ip_port_match.group(2) else ""
+        else:
+            host_port_match = host_port_pattern.search(line)
+            if not host_port_match:
+                continue
+            host, port = host_port_match.groups()
+            if port not in WEB_CANDIDATE_PORTS:
+                continue
+            url = build_url_from_host_port(host, port)
+
+        if url in seen_urls:
+            continue
+        seen_urls.add(url)
+        parsed_data.append({
+            '序号': current_id,
+            'IP地址': host,
+            '端口': port,
+            '协议': '',
+            '状态码': '',
+            'URL': url,
+            '技术栈': '',
+            '页面标题': ''
+        })
+        current_id += 1
+
+    print(f"已从{file_path}生成 {len(parsed_data)} 个候选URL")
     return parsed_data
 
 def generate_excel(data, file_path=None):

@@ -49,16 +49,17 @@ def parse_portscan_file(file_path="port.txt"):
 
     parsed_data = []
     current_id = 1
+    host_pattern = r'[A-Za-z0-9.-]+'
     patterns = {
-        "status": re.compile(r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+)\s+(\w+)$'),
+        "status": re.compile(rf'^({host_pattern}):(\d+)\s+(\w+)$'),
         "fingerprint": re.compile(
-            r'^([A-Z/]+),\s*,\s*\[(.*?)\],\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+),\s*\[(.*?)\],?$'
+            rf'^([A-Z/]+),\s*,\s*\[(.*?)\],\s*({host_pattern}):(\d+),\s*\[(.*?)\],?$'
         ),
         "url": re.compile(
             r'^([A-Z/]+),\s*\[(\d+)\],\s*\[(.*?)\],\s*(http[s]?://\S+),\s*\[(.*?)\],?$'
         ),
         "empty_fingerprint": re.compile(
-            r'^([A-Z/]+),\s*,\s*,\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+),\s*\[.*\],?$'  # 处理空指纹行
+            rf'^([A-Z/]+),\s*,\s*,\s*({host_pattern}):(\d+),\s*\[.*\],?$'
         )
     }
 
