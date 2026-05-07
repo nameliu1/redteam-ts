@@ -15,7 +15,9 @@ if exist url.txt del /F /Q url.txt
 
 :: Step 1: Synchronously run the Python script 2.txt
 python 2.txt
+if errorlevel 1 goto :workflow_failed
 python ppp.py
+if errorlevel 1 goto :workflow_failed
 
 
 :: Step 2: Copy url.txt to finger\url.txt and replace if exists
@@ -33,6 +35,8 @@ if exist res_processed.xlsx del /F /Q res_processed.xlsx
 
 :: Step 4: Asynchronously run the Python script 1.py
 start python 1.py
+goto :eof
 
-:: Step 5: Pause and wait for user input
+:workflow_failed
+echo 前置步骤执行失败，已停止后续工作流。
 pause

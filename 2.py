@@ -30,6 +30,13 @@ class TeeStream:
             stream.flush()
 
 
+def log_subprocess_output(result):
+    if result.stdout:
+        print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
+    if result.stderr:
+        print(result.stderr, end="" if result.stderr.endswith("\n") else "\n", file=sys.stderr)
+
+
 def get_daily_output_dir(base_dir=BASE_DIR):
     date_dir = os.path.join(base_dir, datetime.now().strftime("%m%d"))
     os.makedirs(date_dir, exist_ok=True)
@@ -86,7 +93,11 @@ def run_ts_scan():
     cmd = 'ts -hf ip.txt -pa 3389 -np -m port,url'
     
     try:
-        result = subprocess.run(cmd, shell=True, check=True, text=True, stdout=sys.stdout, stderr=sys.stderr)
+        result = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+        log_subprocess_output(result)
+        if result.returncode != 0:
+            print(f"扫描失败，错误代码: {result.returncode}")
+            return False
         print("扫描完成，结果已保存到url.txt")
         return True
     except subprocess.CalledProcessError as e:
@@ -415,26 +426,26 @@ def main():
     print("=" * 50)
     
     # 执行扫描
-    if run_ts_scan():
-        # 解析URL文件
-        parsed_data = parse_url_file()
-        
-        if not parsed_data:
-            print("没有解析到任何URL数据！")
-            return
-        
-        # 生成Excel表格（带美化）
-        df = generate_excel(parsed_data)
-        
-        # 保存URL到文件（新增功能）
-        save_urls_to_file(parsed_data)
-        
-        # 打印表格预览
-        print("\n表格预览:")
-        print(df.head().to_string())
-        
-        print(f"\n共解析出 {len(parsed_data)} 条记录")
-    
+    if not run_ts_scan():
+        sys.exit(1)
+
+    # 解析URL文件
+    parsed_data = parse_url_file()
+    if not parsed_data:
+        print("没有解析到任何URL数据！")
+        sys.exit(1)
+
+    # 生成Excel表格（带美化）
+    df = generate_excel(parsed_data)
+
+    # 保存URL到文件（新增功能）
+    save_urls_to_file(parsed_data)
+
+    # 打印表格预览
+    print("\n表格预览:")
+    print(df.head().to_string())
+
+    print(f"\n共解析出 {len(parsed_data)} 条记录")
     print("\n操作完成!")
 
 if __name__ == "__main__":
