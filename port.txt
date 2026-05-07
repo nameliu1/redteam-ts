@@ -1,0 +1,57 @@
+14.103.151.171:21 open
+14.103.151.171:22 open
+14.103.151.171:110 open
+14.103.151.171:80 open
+14.103.151.171:25 open
+14.103.151.171:443 open
+14.103.151.171:143 open
+14.103.151.171:81 open
+101.126.17.43:81 open
+14.103.151.171:444 open
+14.103.151.171:993 open
+14.103.151.171:995 open
+14.103.151.171:465 open
+101.126.17.43:22 open
+14.103.151.171:1433 open
+101.126.17.43:444 open
+TCP/POP3, , , 14.103.151.171:110, [+OK Poste.io ready.],
+TCP/SSH, , [OpenSSH 8.2p1 Ubuntu 4ubuntu0.6], 14.103.151.171:22, [SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.6],
+TCP/IMAP, , , 14.103.151.171:143, [* OK [CAPABILITY IMAP4rev1 XLIST LOGIN-REFERRALS I],
+TCP/FTP, , [Pure-FTPd], 14.103.151.171:21, [220---------- Welcome to Pure-FTPd [privsep] [TLS]],
+TCP/SSH, , [OpenSSH 8.2p1 Ubuntu 4ubuntu0.6], 101.126.17.43:22, [SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.6],
+TLS/HTTPS, [200], [nginx][JEECG-VUE3版][Apache-Struts2][jQuery][Roundcube][Bootstrap], https://14.103.151.171:443, [poste.io :: Welcome to poste.io],
+TCP/HTTP, [200], [Apache-Struts2][jQuery][nginx][Roundcube][JEECG-VUE3版][Bootstrap], http://14.103.151.171:80, [poste.io :: Welcome to poste.io],
+TCP/MSSQL, , , 14.103.151.171:1433, [],
+14.103.151.171:3306 open
+14.103.151.171:3389 open
+TCP/MYSQL, , [MySQL], 14.103.151.171:3306, [G.j Host '183.229.201.15' is not allowed to connec],
+TCP/RDP, , , 14.103.151.171:3389, [],
+TCP/POP3, , , 14.103.151.171:995, [+OK Poste.io ready.],
+TCP/IMAP, , , 14.103.151.171:993, [* OK [CAPABILITY IMAP4rev1 XLIST LOGIN-REFERRALS I],
+TCP/SNPP, , , 14.103.151.171:444, [],
+TCP/SNPP, , , 101.126.17.43:444, [],
+TCP/HTTP, [404], [nps], http://14.103.151.171:81, [nps error],
+TCP/HTTP, [404], [nps], http://101.126.17.43:81, [nps error],
+TCP/SMTP, , , 14.103.151.171:465, [220 33e491444ea8 ESMTP Haraka/3.0.3 ready],
+14.103.151.171:7777 open
+101.126.17.43:8081 open
+14.103.151.171:8080 open
+14.103.151.171:8081 open
+101.126.17.43:8082 open
+14.103.151.171:8084 open
+101.126.17.43:8090 open
+14.103.151.171:8088 open
+101.126.17.43:8084 open
+TCP/HTTP, [200], [jQuery][NPS][beegoServer:1.12.0][Bootstrap], http://14.103.151.171:8081, [None],
+TCP/HTTP, [200], [Nginx-Default-Test-Page][nginx/1.29.0], http://101.126.17.43:8090, [Welcome to nginx!],
+TCP/HTTP, [200], [Apache/2.4.29 (Ubuntu)][Apache-HTTP-Server/2.4.29][Apache-Web-Server][禅道], http://14.103.151.171:8080, [None],
+TCP/HTTP, [200], [NPS][beegoServer:1.12.0][jQuery][Bootstrap], http://101.126.17.43:8081, [None],
+TCP/WEBSNP, , , 14.103.151.171:8084, [],
+TCP/CBT, , , 14.103.151.171:7777, [],
+TCP/HTTP, , , radan-http://14.103.151.171:8088, [],
+TCP/BLACKICE-ALERTS, , , 101.126.17.43:8082, [],
+TCP/WEBSNP, , , 101.126.17.43:8084, [],
+14.103.151.171:8443 open
+101.126.17.43:8443 open
+14.103.151.171:8888 open
+TCP/SUN-ANSWERBOOK, , , 14.103.151.171:8888, [],
