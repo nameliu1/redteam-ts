@@ -9,6 +9,52 @@ from openpyxl.styles import Border, Side, Alignment, Font, PatternFill
 from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
 from openpyxl.utils import get_column_letter
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE_PATH = None
+LOG_FILE_HANDLE = None
+ORIGINAL_STDOUT = sys.stdout
+ORIGINAL_STDERR = sys.stderr
+
+class TeeStream:
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, data):
+        for stream in self.streams:
+            stream.write(data)
+            stream.flush()
+        return len(data)
+
+    def flush(self):
+        for stream in self.streams:
+            stream.flush()
+
+
+def get_daily_output_dir(base_dir=BASE_DIR):
+    date_dir = os.path.join(base_dir, datetime.now().strftime("%m%d"))
+    os.makedirs(date_dir, exist_ok=True)
+    return date_dir
+
+
+def generate_unique_path(base_dir, base_name, ext):
+    counter = 1
+    full_path = os.path.join(base_dir, f"{base_name}{ext}")
+    while os.path.exists(full_path):
+        full_path = os.path.join(base_dir, f"{base_name}_{counter}{ext}")
+        counter += 1
+    return full_path
+
+
+def setup_script_logging(prefix):
+    global LOG_FILE_PATH, LOG_FILE_HANDLE
+    log_dir = get_daily_output_dir()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    LOG_FILE_PATH = generate_unique_path(log_dir, f"{prefix}_{timestamp}", ".log")
+    LOG_FILE_HANDLE = open(LOG_FILE_PATH, "a", encoding="utf-8", buffering=1)
+    sys.stdout = TeeStream(ORIGINAL_STDOUT, LOG_FILE_HANDLE)
+    sys.stderr = TeeStream(ORIGINAL_STDERR, LOG_FILE_HANDLE)
+    print(f"日志文件: {LOG_FILE_PATH}")
+
 WEB_PORT_SCHEMES = {
     "443": "https",
     "4430": "https",
@@ -35,7 +81,7 @@ def run_ts_scan():
     cmd = 'ts -hf ip.txt -pa 3389 -np -m port,url'
     
     try:
-        result = subprocess.run(cmd, shell=True, check=True, text=True)
+        result = subprocess.run(cmd, shell=True, check=True, text=True, stdout=sys.stdout, stderr=sys.stderr)
         print("扫描完成，结果已保存到url.txt")
         return True
     except subprocess.CalledProcessError as e:
@@ -387,4 +433,9 @@ def main():
     print("\n操作完成!")
 
 if __name__ == "__main__":
-    main()
+    try:
+        setup_script_logging("2py_workflow")
+        main()
+    finally:
+        if LOG_FILE_HANDLE:
+            LOG_FILE_HANDLE.close()

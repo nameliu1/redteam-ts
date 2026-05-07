@@ -7,6 +7,24 @@ import subprocess
 import shutil
 import pandas as pd
 
+LOG_FILE_HANDLE = None
+ORIGINAL_STDOUT = sys.stdout
+ORIGINAL_STDERR = sys.stderr
+
+class TeeStream:
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, data):
+        for stream in self.streams:
+            stream.write(data)
+            stream.flush()
+        return len(data)
+
+    def flush(self):
+        for stream in self.streams:
+            stream.flush()
+
 # 配置信息
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 URL_FILE = os.path.join(BASE_DIR, "url.txt")
@@ -29,6 +47,16 @@ TO_DELETE_FILES = [
 def log(message):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}")
+
+
+def setup_script_logging(log_dir):
+    global LOG_FILE_HANDLE
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file_path = generate_unique_filename(log_dir, f"1py_workflow_{timestamp}", ".log")
+    LOG_FILE_HANDLE = open(log_file_path, "a", encoding="utf-8", buffering=1)
+    sys.stdout = TeeStream(ORIGINAL_STDOUT, LOG_FILE_HANDLE)
+    sys.stderr = TeeStream(ORIGINAL_STDERR, LOG_FILE_HANDLE)
+    log(f"日志文件: {log_file_path}")
 
 def hide_python_console():
     if HIDE_PYTHON_CONSOLE:
@@ -127,8 +155,14 @@ def process_spray_output(json_file, excel_file, txt_file):
         capture_output=True,
         text=True
     )
+    if result.stdout:
+        for line in result.stdout.splitlines():
+            log(f"process_data.py: {line}")
+    if result.stderr:
+        for line in result.stderr.splitlines():
+            log(f"process_data.py stderr: {line}")
     if result.returncode != 0:
-        log(f"错误: 数据处理失败 - {result.stderr}")
+        log(f"错误: 数据处理失败 - 返回码 {result.returncode}")
         return False
     if not os.path.exists(excel_file):
         log(f"错误: 处理后的Excel文件未生成: {excel_file}")
@@ -211,14 +245,13 @@ def filter_status_200(excel_file, output_dir, count):
 
 def main():
     try:
-        hide_python_console()
-        log(f"开始自动化漏洞扫描和指纹识别流程")
-        log(f"基础目录: {BASE_DIR}")
-        
-        # 创建日期文件夹
         date_folder = datetime.datetime.now().strftime("%m%d")
         full_date_dir = os.path.join(BASE_DIR, date_folder)
         os.makedirs(full_date_dir, exist_ok=True)
+        setup_script_logging(full_date_dir)
+        hide_python_console()
+        log(f"开始自动化漏洞扫描和指纹识别流程")
+        log(f"基础目录: {BASE_DIR}")
         log(f"创建日期文件夹: {full_date_dir}")
         
         # 清理指定的过程文件
@@ -292,11 +325,20 @@ def main():
         
         # 美化ehole结果表格
         log("美化ehole结果表格...")
-        subprocess.run(
+        result = subprocess.run(
             ["python", "process_data.py", ehole_output, ehole_output],
             capture_output=True,
             text=True
         )
+        if result.stdout:
+            for line in result.stdout.splitlines():
+                log(f"process_data.py: {line}")
+        if result.stderr:
+            for line in result.stderr.splitlines():
+                log(f"process_data.py stderr: {line}")
+        if result.returncode != 0:
+            log(f"错误: ehole结果表格美化失败，返回码 {result.returncode}")
+            sys.exit(1)
         log("ehole结果表格美化完成")
         
         log(f"自动化流程全部完成！所有结果保存在: {full_date_dir}")
@@ -307,7 +349,7 @@ def main():
 
 if __name__ == "__main__":
     os.system("chcp 65001 >nul 2>&1")  # 确保中文显示正常
-    
+
     # 检查依赖
     try:
         import psutil
@@ -315,5 +357,9 @@ if __name__ == "__main__":
     except ImportError:
         log("错误: 缺少psutil或pandas库，请执行 'pip install psutil pandas'")
         sys.exit(1)
-    
-    main()
+
+    try:
+        main()
+    finally:
+        if LOG_FILE_HANDLE:
+            LOG_FILE_HANDLE.close()

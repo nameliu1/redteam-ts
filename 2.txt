@@ -9,13 +9,79 @@ from openpyxl.styles import Border, Side, Alignment, Font, PatternFill
 from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
 from openpyxl.utils import get_column_letter
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE_PATH = None
+LOG_FILE_HANDLE = None
+ORIGINAL_STDOUT = sys.stdout
+ORIGINAL_STDERR = sys.stderr
+
+class TeeStream:
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, data):
+        for stream in self.streams:
+            stream.write(data)
+            stream.flush()
+        return len(data)
+
+    def flush(self):
+        for stream in self.streams:
+            stream.flush()
+
+
+def get_daily_output_dir(base_dir=BASE_DIR):
+    date_dir = os.path.join(base_dir, datetime.now().strftime("%m%d"))
+    os.makedirs(date_dir, exist_ok=True)
+    return date_dir
+
+
+def generate_unique_path(base_dir, base_name, ext):
+    counter = 1
+    full_path = os.path.join(base_dir, f"{base_name}{ext}")
+    while os.path.exists(full_path):
+        full_path = os.path.join(base_dir, f"{base_name}_{counter}{ext}")
+        counter += 1
+    return full_path
+
+
+def setup_script_logging(prefix):
+    global LOG_FILE_PATH, LOG_FILE_HANDLE
+    log_dir = get_daily_output_dir()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    LOG_FILE_PATH = generate_unique_path(log_dir, f"{prefix}_{timestamp}", ".log")
+    LOG_FILE_HANDLE = open(LOG_FILE_PATH, "a", encoding="utf-8", buffering=1)
+    sys.stdout = TeeStream(ORIGINAL_STDOUT, LOG_FILE_HANDLE)
+    sys.stderr = TeeStream(ORIGINAL_STDERR, LOG_FILE_HANDLE)
+    print(f"日志文件: {LOG_FILE_PATH}")
+
+WEB_PORT_SCHEMES = {
+    "443": "https",
+    "4430": "https",
+    "4433": "https",
+    "4443": "https",
+    "5443": "https",
+    "8443": "https",
+    "9043": "https",
+    "9443": "https",
+    "10443": "https",
+}
+
+WEB_CANDIDATE_PORTS = {
+    "80", "81", "82", "83", "85", "88", "443", "888",
+    "7001", "8000", "8001", "8002", "8003", "8008", "8009", "8010",
+    "8080", "8081", "8082", "8086", "8088", "8089", "8090", "8443",
+    "8888", "9000", "9043", "9100", "9200", "9443", "9999", "10000",
+    "10443", "4430", "4433", "4443", "5443"
+}
+
 def run_ts_scan():
     """执行ts命令进行扫描，使用原生DOS界面显示输出"""
     print("开始执行端口扫描...")
     cmd = 'ts -hf ip.txt -portf ports.txt -np -m port,url -t 100'
-    
+
     try:
-        result = subprocess.run(cmd, shell=True, check=True, text=True)
+        result = subprocess.run(cmd, shell=True, check=True, text=True, stdout=sys.stdout, stderr=sys.stderr)
         print("扫描完成，结果已保存到url.txt")
         return True
     except subprocess.CalledProcessError as e:
@@ -25,29 +91,28 @@ def run_ts_scan():
         print(f"执行命令时发生错误: {e}")
         return False
 
+
 def parse_url_file():
     """解析url.txt文件，提取详细信息，处理URL末尾的逗号"""
     if not os.path.exists("url.txt"):
-        print("url.txt文件不存在，请先执行扫描")
-        return []
-    
+        print("url.txt文件不存在，尝试从port.txt开放Web端口生成URL")
+        return parse_port_file_for_urls()
+
     with open("url.txt", "r", encoding="utf-8") as f:
         lines = f.readlines()
-    
+
     parsed_data = []
     current_id = 1
-    
+
     for line in lines:
         line = line.strip()
         if not line:
             continue
-            
-        # 检查是否为单行URL
+
         url_match = re.match(r'^(http[s]?://\S+)$', line)
         if url_match:
             url = url_match.group(1)
-            # 清除URL末尾的逗号
-            url = re.sub(r',$', '', url)  # 新增：移除末尾逗号
+            url = re.sub(r',$', '', url)
             parsed_data.append({
                 '序号': current_id,
                 'IP地址': '',
@@ -60,32 +125,24 @@ def parse_url_file():
             })
             current_id += 1
             continue
-            
-        # 尝试修复可能的格式问题（如URL和协议连在一起）
+
         line = re.sub(r'(http[s]?://\S+)(TCP/HTTP)', r'\1, \2', line)
-            
-        # 解析完整格式行：协议, [状态码], [技术栈], URL, [页面标题]
+
         full_match = re.match(
-            r'^(\w+/\w+),\s*\[\s*(\d+)\s*\],\s*\[(.*?)\],\s*(http[s]?://\S+),\s*\[(.*?)\],?$', 
+            r'^(\w+/\w+),\s*\[\s*(\d+)\s*\],\s*\[(.*?)\],\s*(http[s]?://\S+),\s*\[(.*?)\],?$',
             line
         )
-        
+
         if full_match:
             protocol = full_match.group(1)
             status_code = full_match.group(2)
             technologies = full_match.group(3)
-            url = full_match.group(4)
+            url = re.sub(r',$', '', full_match.group(4))
             page_title = full_match.group(5)
-            
-            # 清除URL末尾的逗号（核心修复）
-            url = re.sub(r',$', '', url)  # 新增：移除末尾逗号
-            
-            # 提取IP和端口
             ip_port_pattern = re.compile(r'http[s]?://([^:/]+):?(\d+)?')
             ip_port_match = ip_port_pattern.search(url)
             ip = ip_port_match.group(1) if ip_port_match else ""
             port = ip_port_match.group(2) if ip_port_match and ip_port_match.group(2) else ""
-            
             parsed_data.append({
                 '序号': current_id,
                 'IP地址': ip,
@@ -98,29 +155,22 @@ def parse_url_file():
             })
             current_id += 1
             continue
-            
-        # 尝试解析其他可能的格式（如缺少页面标题）
+
         partial_match = re.match(
-            r'^(\w+/\w+),\s*\[\s*(\d+)\s*\],\s*\[(.*?)\],\s*(http[s]?://\S+),?\s*$', 
+            r'^(\w+/\w+),\s*\[\s*(\d+)\s*\],\s*\[(.*?)\],\s*(http[s]?://\S+),?\s*$',
             line
         )
-        
+
         if partial_match:
             protocol = partial_match.group(1)
             status_code = partial_match.group(2)
             technologies = partial_match.group(3)
-            url = partial_match.group(4)
+            url = re.sub(r',$', '', partial_match.group(4))
             page_title = ""
-            
-            # 清除URL末尾的逗号（核心修复）
-            url = re.sub(r',$', '', url)  # 新增：移除末尾逗号
-            
-            # 提取IP和端口
             ip_port_pattern = re.compile(r'http[s]?://([^:/]+):?(\d+)?')
             ip_port_match = ip_port_pattern.search(url)
             ip = ip_port_match.group(1) if ip_port_match else ""
             port = ip_port_match.group(2) if ip_port_match and ip_port_match.group(2) else ""
-            
             parsed_data.append({
                 '序号': current_id,
                 'IP地址': ip,
@@ -133,21 +183,14 @@ def parse_url_file():
             })
             current_id += 1
             continue
-            
-        # 如果无法解析，尝试提取URL
+
         url_in_line = re.search(r'(http[s]?://\S+)', line)
         if url_in_line:
-            url = url_in_line.group(1)
-            
-            # 清除URL末尾的逗号（核心修复）
-            url = re.sub(r',$', '', url)  # 新增：移除末尾逗号
-            
-            # 提取IP和端口
+            url = re.sub(r',$', '', url_in_line.group(1))
             ip_port_pattern = re.compile(r'http[s]?://([^:/]+):?(\d+)?')
             ip_port_match = ip_port_pattern.search(url)
             ip = ip_port_match.group(1) if ip_port_match else ""
             port = ip_port_match.group(2) if ip_port_match and ip_port_match.group(2) else ""
-            
             parsed_data.append({
                 '序号': current_id,
                 'IP地址': ip,
@@ -161,68 +204,108 @@ def parse_url_file():
             current_id += 1
             print(f"警告：部分解析行 - {line}")
             continue
-            
-        # 如果完全无法解析，记录原始行
+
         print(f"警告：无法解析行 - {line}")
-    
+
     return parsed_data
+
+
+def build_url_from_host_port(host, port):
+    scheme = WEB_PORT_SCHEMES.get(port, "http")
+    return f"{scheme}://{host}:{port}"
+
+
+def parse_port_file_for_urls(file_path="port.txt"):
+    if not os.path.exists(file_path):
+        print(f"{file_path}文件不存在，无法生成URL")
+        return []
+
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        lines = f.readlines()
+
+    parsed_data = []
+    seen_urls = set()
+    current_id = 1
+    host_port_pattern = re.compile(r'(?<![/\w.-])([A-Za-z0-9.-]+):(\d+)\s+open\b')
+
+    for line in lines:
+        line = line.strip().rstrip(',')
+        if not line:
+            continue
+
+        url_match = re.search(r'(http[s]?://\S+)', line)
+        if url_match:
+            url = re.sub(r',$', '', url_match.group(1))
+            ip_port_match = re.search(r'http[s]?://([^:/]+):?(\d+)?', url)
+            host = ip_port_match.group(1) if ip_port_match else ""
+            port = ip_port_match.group(2) if ip_port_match and ip_port_match.group(2) else ""
+        else:
+            host_port_match = host_port_pattern.search(line)
+            if not host_port_match:
+                continue
+            host, port = host_port_match.groups()
+            if port not in WEB_CANDIDATE_PORTS:
+                continue
+            url = build_url_from_host_port(host, port)
+
+        if url in seen_urls:
+            continue
+        seen_urls.add(url)
+        parsed_data.append({
+            '序号': current_id,
+            'IP地址': host,
+            '端口': port,
+            '协议': '',
+            '状态码': '',
+            'URL': url,
+            '技术栈': '',
+            '页面标题': ''
+        })
+        current_id += 1
+
+    print(f"已从{file_path}生成 {len(parsed_data)} 个候选URL")
+    return parsed_data
+
 
 def generate_excel(data, file_path=None):
     """生成Excel表格并美化"""
     if not data:
         print("没有数据可生成表格")
         return
-    
+
     if file_path is None:
         file_path = f"url_details_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    
-    # 创建DataFrame
+
     df = pd.DataFrame(data)
-    
-    # 保存为Excel文件
     df.to_excel(file_path, index=False, engine='openpyxl')
-    
-    # 美化Excel表格
     beautify_excel(file_path)
-    
     print(f"详细表格已保存到 {file_path}")
-    
-    # 返回数据用于预览
     return df
+
 
 def beautify_excel(file_path):
     """美化Excel表格"""
     try:
         wb = load_workbook(file_path)
         ws = wb.active
-        
-        # 表头样式 - 绿色系
         header_font = Font(bold=True, color="FFFFFF", size=12)
         header_fill = PatternFill(start_color="34A853", end_color="34A853", fill_type="solid")
-        
-        # 数据样式
         data_font = Font(color="000000", size=11)
         thin_border = Border(
-            left=Side(style='thin'), 
-            right=Side(style='thin'), 
-            top=Side(style='thin'), 
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
             bottom=Side(style='thin')
         )
-        
-        # 应用表头样式
         for cell in ws[1]:
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = Alignment(horizontal='center', vertical='center')
-        
-        # 应用数据样式
         for row in ws.iter_rows(min_row=2):
             for cell in row:
                 cell.font = data_font
                 cell.border = thin_border
                 cell.alignment = Alignment(horizontal='left', vertical='center')
-        
-        # 自动调整列宽
         for col in ws.columns:
             max_length = 0
             column = col[0].column_letter
@@ -233,9 +316,7 @@ def beautify_excel(file_path):
                 except:
                     pass
             adjusted_width = (max_length + 2)
-            ws.column_dimensions[column].width = min(adjusted_width, 50)  # 限制最大宽度
-        
-        # 为URL添加超链接样式
+            ws.column_dimensions[column].width = min(adjusted_width, 50)
         if 'URL' in [cell.value for cell in ws[1]]:
             col_idx = [cell.value for cell in ws[1]].index('URL') + 1
             for row in range(2, ws.max_row + 1):
@@ -243,73 +324,63 @@ def beautify_excel(file_path):
                 if cell.value and isinstance(cell.value, str) and cell.value.startswith(('http', 'https')):
                     cell.hyperlink = cell.value
                     cell.font = Font(color="0563C1", underline="single")
-        
-        # 添加条件格式 - 状态码高亮
         if '状态码' in [cell.value for cell in ws[1]]:
             col_idx = [cell.value for cell in ws[1]].index('状态码') + 1
             status_range = f"{get_column_letter(col_idx)}2:{get_column_letter(col_idx)}{ws.max_row}"
-            
-            # 状态码条件格式 - 绿色系渐变
             ws.conditional_formatting.add(status_range,
-                ColorScaleRule(start_type='min', start_color='FFD6CC', 
+                ColorScaleRule(start_type='min', start_color='FFD6CC',
                               mid_type='percentile', mid_value=50, mid_color='FFF6CC',
                               end_type='max', end_color='CCFFCC')
             )
-        
-        # 设置自动筛选 - 筛选所有列
-        if ws.max_row > 1:  # 确保有数据行
+        if ws.max_row > 1:
             ws.auto_filter.ref = f'A1:{get_column_letter(ws.max_column)}{ws.max_row}'
-        
         wb.save(file_path)
         print(f"Excel表格美化完成: {file_path}")
     except Exception as e:
         print(f"美化Excel失败: {e}")
+
 
 def save_urls_to_file(data):
     """将解析的URL保存到url.txt文件中"""
     if not data:
         print("没有URL数据可保存")
         return
-    
+
     try:
         with open("url.txt", "w", encoding="utf-8") as f:
             for item in data:
                 url = item.get('URL', '')
                 if url:
                     f.write(url + "\n")
-        
         print(f"已将 {len(data)} 个URL保存到url.txt")
     except Exception as e:
         print(f"保存URL到文件失败: {e}")
+
 
 def main():
     """主函数"""
     print("=" * 50)
     print("网络扫描与URL提取工具")
     print("=" * 50)
-    
-    # 执行扫描
+
     if run_ts_scan():
-        # 解析URL文件
         parsed_data = parse_url_file()
-        
         if not parsed_data:
             print("没有解析到任何URL数据！")
             return
-        
-        # 生成Excel表格（带美化）
         df = generate_excel(parsed_data)
-        
-        # 保存URL到文件（新增功能）
         save_urls_to_file(parsed_data)
-        
-        # 打印表格预览
         print("\n表格预览:")
         print(df.head().to_string())
-        
         print(f"\n共解析出 {len(parsed_data)} 条记录")
-    
+
     print("\n操作完成!")
 
+
 if __name__ == "__main__":
-    main()
+    try:
+        setup_script_logging("2txt_workflow")
+        main()
+    finally:
+        if LOG_FILE_HANDLE:
+            LOG_FILE_HANDLE.close()
