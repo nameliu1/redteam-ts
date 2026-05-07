@@ -47,9 +47,14 @@ def generate_unique_path(base_dir, base_name, ext):
 
 def setup_script_logging(prefix):
     global LOG_FILE_PATH, LOG_FILE_HANDLE
-    log_dir = get_daily_output_dir()
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    LOG_FILE_PATH = generate_unique_path(log_dir, f"{prefix}_{timestamp}", ".log")
+    shared_log_path = os.environ.get("WORKFLOW_LOG_PATH")
+    if shared_log_path:
+        os.makedirs(os.path.dirname(shared_log_path), exist_ok=True)
+        LOG_FILE_PATH = shared_log_path
+    else:
+        log_dir = get_daily_output_dir()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        LOG_FILE_PATH = generate_unique_path(log_dir, f"{prefix}_{timestamp}", ".log")
     LOG_FILE_HANDLE = open(LOG_FILE_PATH, "a", encoding="utf-8", buffering=1)
     sys.stdout = TeeStream(ORIGINAL_STDOUT, LOG_FILE_HANDLE)
     sys.stderr = TeeStream(ORIGINAL_STDERR, LOG_FILE_HANDLE)

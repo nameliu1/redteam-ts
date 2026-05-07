@@ -51,8 +51,13 @@ def log(message):
 
 def setup_script_logging(log_dir):
     global LOG_FILE_HANDLE
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file_path = generate_unique_filename(log_dir, f"1py_workflow_{timestamp}", ".log")
+    shared_log_path = os.environ.get("WORKFLOW_LOG_PATH")
+    if shared_log_path:
+        os.makedirs(os.path.dirname(shared_log_path), exist_ok=True)
+        log_file_path = shared_log_path
+    else:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file_path = generate_unique_filename(log_dir, f"1py_workflow_{timestamp}", ".log")
     LOG_FILE_HANDLE = open(log_file_path, "a", encoding="utf-8", buffering=1)
     sys.stdout = TeeStream(ORIGINAL_STDOUT, LOG_FILE_HANDLE)
     sys.stderr = TeeStream(ORIGINAL_STDERR, LOG_FILE_HANDLE)

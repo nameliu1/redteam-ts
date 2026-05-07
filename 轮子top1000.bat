@@ -1,5 +1,13 @@
 @echo off
+setlocal enabledelayedexpansion
 echo Starting the process...
+
+set "DATE_DIR=%date:~5,2%%date:~8,2%"
+if not exist "%DATE_DIR%" mkdir "%DATE_DIR%"
+set "TIMESTAMP=%date:~0,4%%date:~5,2%%date:~8,2%_%time:~0,2%%time:~3,2%%time:~6,2%"
+set "TIMESTAMP=%TIMESTAMP: =0%"
+set "WORKFLOW_LOG_PATH=%CD%\%DATE_DIR%\workflow_%TIMESTAMP%.log"
+echo 日志文件: %WORKFLOW_LOG_PATH%
 
 :: 删除本地目录下的port.txt
 if exist port.txt del /F /Q port.txt
