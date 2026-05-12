@@ -2,10 +2,8 @@ import os
 import time
 import datetime
 import sys
-import psutil
 import subprocess
 import shutil
-import pandas as pd
 
 LOG_FILE_HANDLE = None
 ORIGINAL_STDOUT = sys.stdout
@@ -313,6 +311,9 @@ def filter_status_200(excel_file, output_dir, count):
 
 def main():
     try:
+        import psutil
+        import pandas as pd
+
         date_folder = datetime.datetime.now().strftime("%m%d")
         full_date_dir = os.path.join(BASE_DIR, date_folder)
         os.makedirs(full_date_dir, exist_ok=True)
@@ -429,14 +430,6 @@ def main():
 
 if __name__ == "__main__":
     os.system("chcp 65001 >nul 2>&1")  # 确保中文显示正常
-
-    # 检查依赖
-    try:
-        import psutil
-        import pandas as pd
-    except ImportError:
-        print("错误: 缺少psutil或pandas库，请执行 'pip install psutil pandas'")
-        sys.exit(1)
 
     try:
         main()

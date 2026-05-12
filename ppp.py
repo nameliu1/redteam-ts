@@ -2,13 +2,6 @@ import os
 import re
 import sys
 from datetime import datetime
-import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import (
-    Border, Side, Alignment, Font, PatternFill, NamedStyle
-)
-from openpyxl.formatting.rule import ColorScaleRule, CellIsRule
-from openpyxl.utils import get_column_letter
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE_HANDLE = None
@@ -60,32 +53,9 @@ def setup_script_logging(prefix):
     sys.stderr = TeeStream(ORIGINAL_STDERR, LOG_FILE_HANDLE)
     print(f"日志文件: {log_file_path}")
 
-# 定义全局样式
-HEADER_STYLE = {
-    "font": Font(bold=True, color="FFFFFF", size=12),
-    "fill": PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid"),
-    "alignment": Alignment(horizontal='center', vertical='center')
-}
-
-DATA_STYLE = {
-    "font": Font(color="000000", size=11),
-    "border": Border(left=Side(style='thin'), right=Side(style='thin'),
-                     top=Side(style='thin'), bottom=Side(style='thin')),
-    "alignment": Alignment(horizontal='left', vertical='center', wrap_text=True)
-}
-
-CONDITIONAL_FORMATTING = {
-    "status_code": {
-        "200": "00FF00",
-        "404": "FFFF00",
-        "500": "FF0000"
-    },
-    "source_colors": {
-        "状态": "F0F0F0",
-        "指纹": "E0FFFF",
-        "URL": "FFF0F5"
-    }
-}
+HEADER_STYLE = {}
+DATA_STYLE = {}
+CONDITIONAL_FORMATTING = {}
 
 
 def parse_portscan_file(file_path="port.txt"):
@@ -273,6 +243,39 @@ def _apply_styles(ws):
 
 
 def main():
+    global HEADER_STYLE, DATA_STYLE, CONDITIONAL_FORMATTING
+
+    import pandas as pd
+    from openpyxl.styles import Border, Side, Alignment, Font, PatternFill
+    from openpyxl.formatting.rule import CellIsRule
+    from openpyxl.utils import get_column_letter
+
+    HEADER_STYLE = {
+        "font": Font(bold=True, color="FFFFFF", size=12),
+        "fill": PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid"),
+        "alignment": Alignment(horizontal='center', vertical='center')
+    }
+
+    DATA_STYLE = {
+        "font": Font(color="000000", size=11),
+        "border": Border(left=Side(style='thin'), right=Side(style='thin'),
+                         top=Side(style='thin'), bottom=Side(style='thin')),
+        "alignment": Alignment(horizontal='left', vertical='center', wrap_text=True)
+    }
+
+    CONDITIONAL_FORMATTING = {
+        "status_code": {
+            "200": "00FF00",
+            "404": "FFFF00",
+            "500": "FF0000"
+        },
+        "source_colors": {
+            "状态": "F0F0F0",
+            "指纹": "E0FFFF",
+            "URL": "FFF0F5"
+        }
+    }
+
     print("=" * 60)
     print("端口扫描报告生成工具 (增强美观版)")
     print("支持解析纯端口状态、端口指纹、URL格式，并自动美化表格")
