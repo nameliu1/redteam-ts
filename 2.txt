@@ -30,11 +30,17 @@ class TeeStream:
             stream.flush()
 
 
+def strip_ansi_sequences(text):
+    return re.sub(r'\x1b\[[0-9;?]*[ -/]*[@-~]', '', text)
+
+
 def log_subprocess_output(result):
     if result.stdout:
-        print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
+        clean_stdout = strip_ansi_sequences(result.stdout)
+        print(clean_stdout, end="" if clean_stdout.endswith("\n") else "\n")
     if result.stderr:
-        print(result.stderr, end="" if result.stderr.endswith("\n") else "\n", file=sys.stderr)
+        clean_stderr = strip_ansi_sequences(result.stderr)
+        print(clean_stderr, end="" if clean_stderr.endswith("\n") else "\n", file=sys.stderr)
 
 
 def get_daily_output_dir(base_dir=BASE_DIR):
@@ -105,7 +111,7 @@ def run_ts_scan():
         if result.returncode != 0:
             print(f"扫描失败，错误代码: {result.returncode}")
             return False
-        print("扫描完成，结果已保存到url.txt")
+        print("端口扫描完成，开始解析扫描结果")
         return True
     except subprocess.CalledProcessError as e:
         print(f"扫描失败，错误代码: {e.returncode}")
@@ -248,6 +254,9 @@ def parse_port_file_for_urls(file_path="port.txt"):
 
     parsed_data = []
     seen_urls = set()
+    scanned_hosts = set()
+    open_hosts = set()
+    web_hosts = set()
     current_id = 1
     host_port_pattern = re.compile(r'(?<![/\w.-])([A-Za-z0-9.-]+):(\d+)\s+open\b')
 
@@ -256,19 +265,34 @@ def parse_port_file_for_urls(file_path="port.txt"):
         if not line:
             continue
 
+        for host in re.findall(r'(?im)^start ipscan:(.+)$', line):
+            host = host.strip()
+            if host:
+                scanned_hosts.add(host)
+        for host in re.findall(r'(?im)^ip扫描结束:(.+)$', line):
+            host = host.strip()
+            if host:
+                scanned_hosts.add(host)
+
         url_match = re.search(r'(http[s]?://\S+)', line)
         if url_match:
             url = re.sub(r',$', '', url_match.group(1))
             ip_port_match = re.search(r'http[s]?://([^:/]+):?(\d+)?', url)
             host = ip_port_match.group(1) if ip_port_match else ""
             port = ip_port_match.group(2) if ip_port_match and ip_port_match.group(2) else ""
+            if host:
+                open_hosts.add(host)
+                if port in WEB_CANDIDATE_PORTS or not port:
+                    web_hosts.add(host)
         else:
             host_port_match = host_port_pattern.search(line)
             if not host_port_match:
                 continue
             host, port = host_port_match.groups()
+            open_hosts.add(host)
             if port not in WEB_CANDIDATE_PORTS:
                 continue
+            web_hosts.add(host)
             url = build_url_from_host_port(host, port)
 
         if url in seen_urls:
@@ -286,6 +310,12 @@ def parse_port_file_for_urls(file_path="port.txt"):
         })
         current_id += 1
 
+    if scanned_hosts:
+        print(f"{file_path}中包含 {len(scanned_hosts)} 个扫描资产")
+    if open_hosts:
+        print(f"其中 {len(open_hosts)} 个资产存在开放端口记录")
+    if web_hosts:
+        print(f"其中 {len(web_hosts)} 个资产命中Web候选端口")
     print(f"已从{file_path}生成 {len(parsed_data)} 个候选URL")
     return parsed_data
 
