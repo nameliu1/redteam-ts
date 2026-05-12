@@ -34,7 +34,8 @@ if exist res_processed.txt del /F /Q res_processed.txt
 if exist res_processed.xlsx del /F /Q res_processed.xlsx
 
 :: Step 4: Asynchronously run the Python script 1.py
-start python 1.py
+python 1.py
+if errorlevel 1 goto :workflow_failed
 goto :eof
 
 :workflow_failed

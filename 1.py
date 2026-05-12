@@ -435,7 +435,7 @@ if __name__ == "__main__":
         import psutil
         import pandas as pd
     except ImportError:
-        log("错误: 缺少psutil或pandas库，请执行 'pip install psutil pandas'")
+        print("错误: 缺少psutil或pandas库，请执行 'pip install psutil pandas'")
         sys.exit(1)
 
     try:
