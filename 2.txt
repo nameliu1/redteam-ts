@@ -292,6 +292,47 @@ def build_url_from_host_port(host, port):
     return f"{scheme}://{host}:{port}"
 
 
+def parse_input_file_for_urls(file_path="ip.txt"):
+    if not os.path.exists(file_path):
+        print(f"{file_path}文件不存在，无法生成根路径URL")
+        return []
+
+    parsed_data = []
+    seen_urls = set()
+    current_id = 1
+
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        for raw_line in f:
+            host = raw_line.strip().rstrip(',')
+            if not host:
+                continue
+
+            host = re.sub(r'^http[s]?://', '', host)
+            host = host.split('/', 1)[0].strip()
+            if not host:
+                continue
+
+            for scheme in ("https", "http"):
+                url = f"{scheme}://{host}"
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                parsed_data.append({
+                    '序号': current_id,
+                    'IP地址': host,
+                    '端口': '',
+                    '协议': '',
+                    '状态码': '',
+                    'URL': url,
+                    '技术栈': '',
+                    '页面标题': ''
+                })
+                current_id += 1
+
+    print(f"已从{file_path}生成 {len(parsed_data)} 个根路径候选URL")
+    return parsed_data
+
+
 def parse_port_file_for_urls(file_path="port.txt"):
     if not os.path.exists(file_path):
         print(f"{file_path}文件不存在，无法生成URL")
@@ -468,6 +509,9 @@ def main():
         sys.exit(1)
 
     parsed_data = parse_url_file()
+    if not parsed_data:
+        print("未从扫描结果中发现可用的Web候选URL，尝试从ip.txt生成根路径候选URL")
+        parsed_data = parse_input_file_for_urls()
     if not parsed_data:
         print("未发现可用的Web候选URL，已正常结束本轮扫描。")
         if os.path.exists("url.txt"):
