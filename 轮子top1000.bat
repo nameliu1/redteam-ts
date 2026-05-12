@@ -17,6 +17,11 @@ if exist url.txt del /F /Q url.txt
 echo [WORKFLOW] START 2.txt >> "%WORKFLOW_LOG_PATH%"
 python 2.txt
 if errorlevel 1 goto :workflow_failed
+if not exist url.txt (
+    echo [WORKFLOW] INFO no candidate web URLs found, skipping downstream stages >> "%WORKFLOW_LOG_PATH%"
+    goto :eof
+)
+
 echo [WORKFLOW] START ppp.py >> "%WORKFLOW_LOG_PATH%"
 python ppp.py
 if errorlevel 1 echo [WORKFLOW] WARN ppp.py failed but workflow will continue >> "%WORKFLOW_LOG_PATH%"
