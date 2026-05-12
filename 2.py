@@ -93,7 +93,14 @@ def run_ts_scan():
     cmd = 'ts -hf ip.txt -pa 3389 -np -m port,url'
     
     try:
-        result = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            text=True,
+            capture_output=True,
+            encoding="utf-8",
+            errors="ignore"
+        )
         log_subprocess_output(result)
         if result.returncode != 0:
             print(f"扫描失败，错误代码: {result.returncode}")
