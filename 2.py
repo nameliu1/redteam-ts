@@ -469,8 +469,10 @@ def main():
     # 解析URL文件
     parsed_data = parse_url_file()
     if not parsed_data:
-        print("没有解析到任何URL数据！")
-        sys.exit(1)
+        print("未发现可用的Web候选URL，已正常结束本轮扫描。")
+        if os.path.exists("url.txt"):
+            os.remove("url.txt")
+        return
 
     # 生成Excel表格（带美化）
     df = generate_excel(parsed_data)

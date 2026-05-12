@@ -14,13 +14,13 @@ if exist port.txt del /F /Q port.txt
 if exist url.txt del /F /Q url.txt
 
 :: Step 1: Synchronously run the Python script 2.txt
-echo [WORKFLOW] 开始执行 2.txt >> "%WORKFLOW_LOG_PATH%"
+echo [WORKFLOW] START 2.txt >> "%WORKFLOW_LOG_PATH%"
 python 2.txt
 if errorlevel 1 goto :workflow_failed
-echo [WORKFLOW] 开始执行 ppp.py >> "%WORKFLOW_LOG_PATH%"
+echo [WORKFLOW] START ppp.py >> "%WORKFLOW_LOG_PATH%"
 python ppp.py
-if errorlevel 1 echo 警告: ppp.py 执行异常，继续后续主流程。 >> "%WORKFLOW_LOG_PATH%"
-echo [WORKFLOW] 开始执行 1.py >> "%WORKFLOW_LOG_PATH%"
+if errorlevel 1 echo [WORKFLOW] WARN ppp.py failed but workflow will continue >> "%WORKFLOW_LOG_PATH%"
+echo [WORKFLOW] START 1.py >> "%WORKFLOW_LOG_PATH%"
 
 :: Step 2: Copy url.txt to finger\url.txt and replace if exists
 

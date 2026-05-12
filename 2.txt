@@ -421,8 +421,10 @@ def main():
 
     parsed_data = parse_url_file()
     if not parsed_data:
-        print("没有解析到任何URL数据！")
-        sys.exit(1)
+        print("未发现可用的Web候选URL，已正常结束本轮扫描。")
+        if os.path.exists("url.txt"):
+            os.remove("url.txt")
+        return
 
     df = generate_excel(parsed_data)
     save_urls_to_file(parsed_data)
