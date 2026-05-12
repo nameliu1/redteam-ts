@@ -282,24 +282,27 @@ def process_data(input_file, output_file):
     try:
         # 检查输入文件类型
         file_ext = os.path.splitext(input_file)[1].lower()
-        
+
         if file_ext == '.json':
             # 处理spray生成的JSON文件
             print(f"开始处理spray结果: {input_file}")
-            
+
             # 读取JSON数据
             data_list = []
             with open(input_file, 'r', encoding='utf-8') as f:
                 for line in f:
+                    stripped_line = line.strip()
+                    if not stripped_line:
+                        continue
                     try:
-                        data = json.loads(line.strip())
+                        data = json.loads(stripped_line)
                         data_list.append(data)
                     except json.JSONDecodeError:
                         print(f"警告: 无法解析JSON行: {line[:50]}...")
-            
+
             if not data_list:
                 print(f"错误: 文件 {input_file} 中没有有效JSON数据")
-                return
+                return False
             
             # 转换为DataFrame
             df = pd.DataFrame(data_list)
@@ -373,7 +376,8 @@ def process_data(input_file, output_file):
             
             # 美化spray生成的Excel
             beautify_spray_excel(output_file)
-        
+            return True
+
         elif file_ext in ['.xlsx', '.xls']:
             # 处理ehole生成的Excel文件
             print(f"开始美化ehole结果: {input_file}")
@@ -385,19 +389,24 @@ def process_data(input_file, output_file):
             
             # 深度美化ehole结果（关键修复点：恢复了对beautify_ehole_excel的调用）
             beautify_ehole_excel(output_file)
-        
+            return True
+
         else:
             print(f"错误: 不支持的文件类型: {file_ext}")
-            
+            return False
+
     except Exception as e:
         print(f"处理文件时出错: {e}")
+        return False
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("用法: python process_data.py <输入JSON/Excel文件> <输出Excel文件>")
         sys.exit(1)
-    
+
     input_file = sys.argv[1]
     output_file = sys.argv[2]
-    
-    process_data(input_file, output_file)
+
+    success = process_data(input_file, output_file)
+    if not success:
+        sys.exit(1)

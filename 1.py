@@ -167,18 +167,39 @@ def process_spray_output(json_file, excel_file, txt_file):
         for line in result.stderr.splitlines():
             log(f"process_data.py stderr: {line}")
     if result.returncode != 0:
-        log(f"错误: 数据处理失败 - 返回码 {result.returncode}")
+        log(f"警告: spray结果未生成结构化Excel，返回码 {result.returncode}")
         return False
     if not os.path.exists(excel_file):
-        log(f"错误: 处理后的Excel文件未生成: {excel_file}")
+        log(f"警告: 处理后的Excel文件未生成: {excel_file}")
         return False
     if not os.path.exists(txt_file):
         log(f"警告: 未找到URL列表文件: {txt_file}，可能没有有效URL")
         return False
     with open(txt_file, 'r', encoding='utf-8') as f:
-        url_count = len(f.readlines())
+        url_count = len([line for line in f.readlines() if line.strip()])
     log(f"成功提取 {url_count} 个URL")
     return True
+
+
+def fallback_to_input_urls(output_dir):
+    if not os.path.exists(URL_FILE):
+        log(f"错误: 无法回退，原始URL文件不存在: {URL_FILE}")
+        return None
+
+    with open(URL_FILE, 'r', encoding='utf-8') as f:
+        urls = [line.strip() for line in f if line.strip()]
+
+    if not urls:
+        log(f"错误: 无法回退，原始URL文件为空: {URL_FILE}")
+        return None
+
+    date_str = datetime.datetime.now().strftime("%Y%m%d")
+    fallback_base = f"{date_str}_input_urls_fallback"
+    fallback_path = generate_unique_filename(output_dir, fallback_base, ".txt")
+    with open(fallback_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(urls))
+    log(f"已回退使用输入URL列表: {fallback_path}，共 {len(urls)} 个URL")
+    return fallback_path
 
 def filter_status_200(excel_file, output_dir, count):
     try:
@@ -280,32 +301,39 @@ def main():
         unique_excel_file = generate_unique_filename(BASE_DIR, "res_processed", ".xlsx")
         unique_txt_file = generate_unique_filename(BASE_DIR, "res_processed", ".txt")
         
-        if not process_spray_output(JSON_FILE, unique_excel_file, unique_txt_file):
-            log("错误: 处理spray输出失败")
-            sys.exit(1)
-        
+        spray_processed = process_spray_output(JSON_FILE, unique_excel_file, unique_txt_file)
+
         # 步骤3: 筛选状态码200的URL
-        log("步骤3: 筛选状态码200的URL...")
-        filtered_txt_path = filter_status_200(unique_excel_file, full_date_dir, 1)
+        log("步骤3: 准备ehole输入URL...")
+        filtered_txt_path = None
+        if spray_processed:
+            filtered_txt_path = filter_status_200(unique_excel_file, full_date_dir, 1)
+            if not filtered_txt_path:
+                log("警告: 未筛选出状态码200的URL，回退使用原始输入URL")
+                filtered_txt_path = fallback_to_input_urls(full_date_dir)
+        else:
+            log("警告: spray输出无法结构化处理，回退使用原始输入URL")
+            filtered_txt_path = fallback_to_input_urls(full_date_dir)
+
         if not filtered_txt_path:
-            log("错误: 未生成状态码为200的URL文件")
+            log("错误: 未生成可供ehole使用的URL文件")
             sys.exit(1)
-        
+
         # 步骤3.5: 移动Spray结果文件到日期文件夹
         log("步骤3.5: 移动Spray结果文件到日期文件夹...")
-        
+
         # 为移动的文件生成唯一文件名
         spray_json_base = f"spray_original_{datetime.datetime.now().strftime('%Y%m%d')}"
         spray_json_dest = generate_unique_filename(full_date_dir, spray_json_base, ".json")
-        
-        spray_excel_base = f"spray_processed_{datetime.datetime.now().strftime('%Y%m%d')}"
-        spray_excel_dest = generate_unique_filename(full_date_dir, spray_excel_base, ".xlsx")
-        
+
         shutil.move(JSON_FILE, spray_json_dest)
         log(f"已移动Spray原始结果: {spray_json_dest}")
-        
-        shutil.move(unique_excel_file, spray_excel_dest)
-        log(f"已移动Spray处理后Excel: {spray_excel_dest}")
+
+        if spray_processed and os.path.exists(unique_excel_file):
+            spray_excel_base = f"spray_processed_{datetime.datetime.now().strftime('%Y%m%d')}"
+            spray_excel_dest = generate_unique_filename(full_date_dir, spray_excel_base, ".xlsx")
+            shutil.move(unique_excel_file, spray_excel_dest)
+            log(f"已移动Spray处理后Excel: {spray_excel_dest}")
         
         # 步骤4: 执行ehole指纹识别
         log("步骤4: 执行ehole指纹识别...")
