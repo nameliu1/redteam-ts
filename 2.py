@@ -129,6 +129,15 @@ def setup_script_logging(prefix):
     sys.stderr = TeeStream(ORIGINAL_STDERR, LOG_FILE_HANDLE)
     print(f"日志文件: {LOG_FILE_PATH}")
 
+
+def teardown_script_logging():
+    global LOG_FILE_HANDLE
+    sys.stdout = ORIGINAL_STDOUT
+    sys.stderr = ORIGINAL_STDERR
+    if LOG_FILE_HANDLE:
+        LOG_FILE_HANDLE.close()
+        LOG_FILE_HANDLE = None
+
 WEB_PORT_SCHEMES = {
     "443": "https",
     "4430": "https",
@@ -586,5 +595,4 @@ if __name__ == "__main__":
         setup_script_logging("2py_workflow")
         main()
     finally:
-        if LOG_FILE_HANDLE:
-            LOG_FILE_HANDLE.close()
+        teardown_script_logging()

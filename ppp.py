@@ -53,6 +53,15 @@ def setup_script_logging(prefix):
     sys.stderr = TeeStream(ORIGINAL_STDERR, LOG_FILE_HANDLE)
     print(f"日志文件: {log_file_path}")
 
+
+def teardown_script_logging():
+    global LOG_FILE_HANDLE
+    sys.stdout = ORIGINAL_STDOUT
+    sys.stderr = ORIGINAL_STDERR
+    if LOG_FILE_HANDLE:
+        LOG_FILE_HANDLE.close()
+        LOG_FILE_HANDLE = None
+
 HEADER_STYLE = {}
 DATA_STYLE = {}
 CONDITIONAL_FORMATTING = {}
@@ -302,6 +311,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"警告: ppp.py 执行异常: {e}")
     finally:
-        if LOG_FILE_HANDLE:
-            LOG_FILE_HANDLE.close()
+        teardown_script_logging()
     sys.exit(exit_code)

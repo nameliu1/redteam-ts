@@ -61,6 +61,15 @@ def setup_script_logging(log_dir):
     sys.stderr = TeeStream(ORIGINAL_STDERR, LOG_FILE_HANDLE)
     log(f"日志文件: {log_file_path}")
 
+
+def teardown_script_logging():
+    global LOG_FILE_HANDLE
+    sys.stdout = ORIGINAL_STDOUT
+    sys.stderr = ORIGINAL_STDERR
+    if LOG_FILE_HANDLE:
+        LOG_FILE_HANDLE.close()
+        LOG_FILE_HANDLE = None
+
 def hide_python_console():
     if HIDE_PYTHON_CONSOLE:
         try:
@@ -434,5 +443,4 @@ if __name__ == "__main__":
     try:
         main()
     finally:
-        if LOG_FILE_HANDLE:
-            LOG_FILE_HANDLE.close()
+        teardown_script_logging()
