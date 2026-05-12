@@ -1,6 +1,7 @@
 import json
 import pandas as pd
 import os
+import re
 import sys
 import shutil
 from openpyxl import load_workbook
@@ -106,16 +107,48 @@ def beautify_spray_excel(file_path):
     except Exception as e:
         print(f"美化Spray Excel失败: {e}")
 
-def beautify_ehole_excel(file_path):
+def create_basic_ehole_excel(file_path, input_url_file=None):
+    records = []
+    if input_url_file and os.path.exists(input_url_file):
+        with open(input_url_file, 'r', encoding='utf-8') as f:
+            for url in f:
+                normalized_url = url.strip()
+                if not normalized_url:
+                    continue
+                host_match = re.search(r'^https?://([^/:]+)(?::(\d+))?', normalized_url)
+                host = host_match.group(1) if host_match else ""
+                port = host_match.group(2) if host_match and host_match.group(2) else ""
+                records.append({
+                    "URL": normalized_url,
+                    "Host": host,
+                    "Port": port,
+                    "Status": "reachable-input",
+                    "Title": ""
+                })
+
+    if not records:
+        return False
+
+    df = pd.DataFrame(records)
+    df.to_excel(file_path, index=False)
+    print(f"已根据输入URL生成基础资产表: {file_path}")
+    return True
+
+
+def beautify_ehole_excel(file_path, input_url_file=None):
     """深度美化ehole生成的Excel表格"""
     try:
         wb = load_workbook(file_path)
         ws = wb.active
-        
+
         # 检查工作表是否为空
         if ws.max_row <= 1:
             print(f"警告: ehole结果表格为空: {file_path}")
-            return
+            if create_basic_ehole_excel(file_path, input_url_file):
+                wb = load_workbook(file_path)
+                ws = wb.active
+            else:
+                return
         
         # 表头样式
         header_font = Font(bold=True, color="FFFFFF", size=14)
@@ -277,7 +310,7 @@ def beautify_ehole_excel(file_path):
     except Exception as e:
         print(f"美化Ehole Excel失败: {e}")
 
-def process_data(input_file, output_file):
+def process_data(input_file, output_file, input_url_file=None):
     """处理JSON输入文件，生成Excel和TXT输出"""
     try:
         # 检查输入文件类型
@@ -388,7 +421,7 @@ def process_data(input_file, output_file):
                 shutil.copy2(input_file, output_file)
             
             # 深度美化ehole结果（关键修复点：恢复了对beautify_ehole_excel的调用）
-            beautify_ehole_excel(output_file)
+            beautify_ehole_excel(output_file, input_url_file)
             return True
 
         else:
@@ -400,13 +433,14 @@ def process_data(input_file, output_file):
         return False
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("用法: python process_data.py <输入JSON/Excel文件> <输出Excel文件>")
+    if len(sys.argv) not in [3, 4]:
+        print("用法: python process_data.py <输入JSON/Excel文件> <输出Excel文件> [输入URL文件]")
         sys.exit(1)
 
     input_file = sys.argv[1]
     output_file = sys.argv[2]
+    input_url_file = sys.argv[3] if len(sys.argv) == 4 else None
 
-    success = process_data(input_file, output_file)
+    success = process_data(input_file, output_file, input_url_file)
     if not success:
         sys.exit(1)

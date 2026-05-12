@@ -181,13 +181,31 @@ def process_spray_output(json_file, excel_file, txt_file):
     return True
 
 
+def normalize_url_list(urls):
+    normalized_urls = []
+    seen = set()
+
+    for url in urls:
+        normalized_url = url.strip().rstrip('/')
+        if not normalized_url:
+            continue
+        if not normalized_url.startswith(('http://', 'https://')):
+            normalized_url = f"http://{normalized_url}"
+        if normalized_url in seen:
+            continue
+        seen.add(normalized_url)
+        normalized_urls.append(normalized_url)
+
+    return normalized_urls
+
+
 def fallback_to_input_urls(output_dir):
     if not os.path.exists(URL_FILE):
         log(f"错误: 无法回退，原始URL文件不存在: {URL_FILE}")
         return None
 
     with open(URL_FILE, 'r', encoding='utf-8') as f:
-        urls = [line.strip() for line in f if line.strip()]
+        urls = normalize_url_list([line for line in f if line.strip()])
 
     if not urls:
         log(f"错误: 无法回退，原始URL文件为空: {URL_FILE}")
@@ -200,6 +218,27 @@ def fallback_to_input_urls(output_dir):
         f.write('\n'.join(urls))
     log(f"已回退使用输入URL列表: {fallback_path}，共 {len(urls)} 个URL")
     return fallback_path
+
+
+def ensure_ehole_input_urls(input_file, output_dir):
+    if not os.path.exists(input_file):
+        log(f"错误: ehole输入文件不存在: {input_file}")
+        return None
+
+    with open(input_file, 'r', encoding='utf-8') as f:
+        urls = normalize_url_list([line for line in f if line.strip()])
+
+    if not urls:
+        log(f"错误: ehole输入URL为空: {input_file}")
+        return None
+
+    date_str = datetime.datetime.now().strftime("%Y%m%d")
+    normalized_base = f"{date_str}_ehole_input_urls"
+    normalized_path = generate_unique_filename(output_dir, normalized_base, ".txt")
+    with open(normalized_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(urls))
+    log(f"已规范化ehole输入URL: {normalized_path}，共 {len(urls)} 个URL")
+    return normalized_path
 
 def filter_status_200(excel_file, output_dir, count):
     try:
@@ -319,6 +358,11 @@ def main():
             log("错误: 未生成可供ehole使用的URL文件")
             sys.exit(1)
 
+        normalized_ehole_input = ensure_ehole_input_urls(filtered_txt_path, full_date_dir)
+        if not normalized_ehole_input:
+            log("错误: 未生成有效的ehole输入URL文件")
+            sys.exit(1)
+
         # 步骤3.5: 移动Spray结果文件到日期文件夹
         log("步骤3.5: 移动Spray结果文件到日期文件夹...")
 
@@ -334,15 +378,15 @@ def main():
             spray_excel_dest = generate_unique_filename(full_date_dir, spray_excel_base, ".xlsx")
             shutil.move(unique_excel_file, spray_excel_dest)
             log(f"已移动Spray处理后Excel: {spray_excel_dest}")
-        
+
         # 步骤4: 执行ehole指纹识别
         log("步骤4: 执行ehole指纹识别...")
-        
+
         # 为ehole结果生成唯一文件名
         ehole_base = f"ehole_result_{datetime.datetime.now().strftime('%Y%m%d')}"
         ehole_output = generate_unique_filename(full_date_dir, ehole_base, ".xlsx")
-        
-        ehole_cmd = f'ehole finger -l "{filtered_txt_path}" -o "{ehole_output}" -t 10'
+
+        ehole_cmd = f'ehole finger -l "{normalized_ehole_input}" -o "{ehole_output}" -t 10'
         run_native_command(ehole_cmd, "ehole.exe")
         
         # 监控ehole进程并等待结束
@@ -359,7 +403,7 @@ def main():
         # 美化ehole结果表格
         log("美化ehole结果表格...")
         result = subprocess.run(
-            ["python", "process_data.py", ehole_output, ehole_output],
+            ["python", "process_data.py", ehole_output, ehole_output, normalized_ehole_input],
             capture_output=True,
             text=True
         )
