@@ -282,17 +282,23 @@ def main():
 
     if not data:
         print("解析失败或无有效数据！")
-        return
+        return False
 
     generate_excel(data)
 
     print("\n操作完成！结果文件已生成")
+    return True
 
 
 if __name__ == "__main__":
+    exit_code = 0
     try:
         setup_script_logging("ppp_workflow")
-        main()
+        if not main():
+            print("警告: ppp.py 未生成报表，但不会阻断后续主流程")
+    except Exception as e:
+        print(f"警告: ppp.py 执行异常: {e}")
     finally:
         if LOG_FILE_HANDLE:
             LOG_FILE_HANDLE.close()
+    sys.exit(exit_code)

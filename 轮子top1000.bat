@@ -17,7 +17,7 @@ if exist url.txt del /F /Q url.txt
 python 2.txt
 if errorlevel 1 goto :workflow_failed
 python ppp.py
-if errorlevel 1 goto :workflow_failed
+if errorlevel 1 echo 警告: ppp.py 执行异常，继续后续主流程。
 
 
 :: Step 2: Copy url.txt to finger\url.txt and replace if exists

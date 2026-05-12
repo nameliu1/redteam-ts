@@ -17,7 +17,7 @@ if exist url.txt del /F /Q url.txt
 python 2.py
 if errorlevel 1 goto :workflow_failed
 python ppp.py
-if errorlevel 1 goto :workflow_failed
+if errorlevel 1 echo 警告: ppp.py 执行异常，继续后续主流程。
 
 if exist res.json del /F /Q res.json
 if exist res_processed.txt del /F /Q res_processed.txt
