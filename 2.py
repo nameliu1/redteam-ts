@@ -96,7 +96,8 @@ WEB_CANDIDATE_PORTS = {
 def run_ts_scan():
     """执行ts命令进行扫描，使用原生DOS界面显示输出"""
     print("开始执行端口扫描...")
-    cmd = 'ts -hf ip.txt -pa 3389 -np -m port,url'
+    cmd = 'ts -hf ip.txt -portf ports.txt -np -m port,url -t 100'
+    print(f"扫描命令: {cmd}")
     
     try:
         result = subprocess.run(

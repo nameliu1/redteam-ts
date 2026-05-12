@@ -78,7 +78,7 @@ ts -hf ip.txt -np -m port,url
 
 ## High-level workflow
 
-1. `2.py` runs `ts -hf ip.txt -pa 3389 -np -m port,url`, parses `url.txt`, generates a styled `url_details_*.xlsx`, and rewrites extracted URLs back to `url.txt`.
+1. `2.py` runs `ts -hf ip.txt -portf ports.txt -np -m port,url -t 100`, parses `url.txt`, generates a styled `url_details_*.xlsx`, and rewrites extracted URLs back to `url.txt`.
 2. `ppp.py` parses `port.txt` into a styled `port_scan_report_*.xlsx`. It supports raw open-port lines, fingerprint lines, empty-fingerprint lines, and URL result lines.
 3. `1.py` orchestrates the main pipeline:
    - cleans prior transient outputs such as `url.txt.stat` and `res_processed.txt`;
